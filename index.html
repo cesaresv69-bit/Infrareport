@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraReport</title>
+    <style>
+        /* ================= ESTILOS CSS (Elegante Blanco y Negro) ================= */
+        :root {
+            --bg-body: #f4f5f7;
+            --bg-header: #111827;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --accent-dark: #1f2937;
+            --urgent-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+
+        body { background-color: var(--bg-body); color: var(--text-main); }
+
+        /* Cabecera */
+        header { background-color: var(--bg-header); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; color: var(--white); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .logo { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .live-badge { background-color: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+        .live-dot { width: 8px; height: 8px; background-color: var(--success-color); border-radius: 50%; box-shadow: 0 0 8px var(--success-color); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* Contenedor Principal */
+        .container { display: flex; max-width: 1200px; margin: 30px auto; gap: 25px; padding: 0 20px; align-items: flex-start; flex-wrap: wrap; }
+
+        /* Panel Izquierdo - Formulario */
+        .form-panel { background: var(--white); padding: 25px; border-radius: 12px; width: 350px; flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); }
+        @media (max-width: 800px) { .form-panel { width: 100%; } }
+        .form-panel h2 { font-size: 1.2rem; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+        .input-group input, .input-group textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; outline: none; transition: border 0.3s; }
+        .input-group input:focus, .input-group textarea:focus { border-color: var(--accent-dark); }
+        .input-group textarea { resize: none; height: 80px; }
+        
+        /* Zona de subida de imagen */
+        .upload-zone { border: 2px dashed var(--border); padding: 25px 20px; text-align: center; border-radius: 8px; background: #fafafa; cursor: pointer; margin-bottom: 20px; transition: all 0.3s; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; }
+        .upload-zone:hover { border-color: var(--accent-dark); }
+        .upload-zone input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+        .upload-zone img { max-width: 100%; max-height: 200px; border-radius: 8px; display: none; object-fit: contain; z-index: 5; position: relative; }
+        .upload-icon { font-size: 2rem; margin-bottom: 10px; color: var(--text-light); }
+        .upload-text { font-size: 0.95rem; font-weight: 600; }
+
+        .btn-submit { width: 100%; padding: 12px; background: var(--bg-header); color: var(--white); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        .btn-submit:hover { background: #000000; }
+        .btn-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+
+        /* Panel Derecho - Feed */
+        .feed-panel { flex-grow: 1; min-width: 300px; }
+        .tabs { display: flex; background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--border); }
+        .tab { flex: 1; text-align: center; padding: 15px; cursor: pointer; font-weight: bold; background: #f9fafb; color: var(--text-light); border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab.active { background: var(--bg-header); color: var(--white); border-bottom: 3px solid var(--bg-header); }
+
+        .feed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 0 10px; }
+        .feed-header h2 { font-size: 1.3rem; display: flex; align-items: center; gap: 10px; }
+        .case-count { font-size: 0.85rem; background: #e5e7eb; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+
+        /* Estado Vacío / Cargando */
+        .empty-state { background: var(--white); padding: 50px 20px; text-align: center; border-radius: 12px; border: 1px solid var(--border); }
+        .empty-state span { font-size: 3rem; display: block; margin-bottom: 15px; }
+        .empty-state h3 { font-size: 1.1rem; margin-bottom: 5px; }
+
+        /* Publicaciones */
+        .posts-container { display: flex; flex-direction: column; gap: 20px; }
+        .post { background: var(--white); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .post-img { width: 100%; max-height: 400px; object-fit: cover; background: #eee; display: block; }
+        .post-content { padding: 20px; }
+        .post-title { font-size: 1.2rem; margin-bottom: 5px; font-weight: 700; }
+        .post-desc { color: var(--text-light); font-size: 0.95rem; margin-bottom: 15px; }
+        
+        .post-actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn-action { padding: 8px 15px; border-radius: 6px; font-size: 0.85rem; font-weight: bold; cursor: pointer; border: 1px solid var(--border); background: var(--white); transition: all 0.2s; }
+        .btn-action:hover { background: #f3f4f6; }
+        .btn-urgent { border-color: var(--urgent-color); color: var(--urgent-color); background: #fef2f2; }
+        .btn-urgent:hover { background: #fee2e2; }
+        .btn-repaired { border-color: var(--success-color); color: var(--success-color); background: #ecfdf5; }
+        .btn-repaired:hover { background: #d1fae5; }
+        .btn-delete { color: var(--urgent-color); border-color: transparent; margin-left: auto; }
+        .btn-delete:hover { background: #fef2f2; border-color: var(--urgent-color); }
+        
+        /* Insignia de urgencia */
+        .badge-urgent { background: var(--urgent-color); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; vertical-align: middle; margin-left: 10px; }
+
+        /* Comentarios */
+        .comments-section { border-top: 1px solid var(--border); padding-top: 15px; }
+        .comment-list { margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .comment { background: #f9fafb; padding: 10px; border-radius: 8px; font-size: 0.85rem; border: 1px solid #e5e7eb; }
+        .comment-input-group { display: flex; gap: 10px; }
+        .comment-input-group input { flex-grow: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 0.85rem; outline: none; }
+        .comment-input-group button { padding: 8px 15px; background: var(--accent-dark); color: white; border: none; border-radius: 20px; font-size: 0.85rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">🛡️ InfraReport</div>
+        <div class="live-badge">
+            <span class="live-dot"></span> EN VIVO PARA TODOS
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Formulario de Reporte -->
+        <aside class="form-panel">
+            <h2>📷 Registrar Nuevo Daño</h2>
+            
+            <div class="input-group">
+                <label>¿Qué está dañado?</label>
+                <input type="text" id="objTitle" placeholder="Ej. Puerta del salón 3B rota" maxlength="50">
+            </div>
+
+            <div class="input-group">
+                <label>Ubicación exacta y detalles</label>
+                <textarea id="objDesc" placeholder="Describe el problema para que los demás lo ubiquen..."></textarea>
+            </div>
+
+            <div class="input-group">
+                <label>Evidencia Fotográfica</label>
+                <div class="upload-zone" id="uploadZone">
+                    <div id="uploadPlaceholder">
+                        <div class="upload-icon">☁️</div>
+                        <div class="upload-text">Tocar para subir foto</div>
+                    </div>
+                    <img id="imagePreview" alt="Vista previa">
+                    <input type="file" id="photoInput" accept="image/*">
+                </div>
+            </div>
+
+            <button class="btn-submit" id="btnSubmit" onclick="publishReport()">+ Publicar para el grupo</button>
+        </aside>
+
+        <!-- Feed en Tiempo Real -->
+        <main class="feed-panel">
+            <div class="tabs">
+                <div class="tab active" id="tabActive" onclick="switchTab('active')">📑 Reportes Activos</div>
+                <div class="tab" id="tabHistory" onclick="switchTab('history')">✅ Historial Reparados</div>
+            </div>
+
+            <div class="feed-header">
+                <h2 id="feedTitle">📦 Reportes Activos</h2>
+                <div class="case-count"><span id="caseCount">0</span> casos</div>
+            </div>
+
+            <div id="postsContainer" class="posts-container">
+                <div class="empty-state">
+                    <h3>Conectando con la nube... ☁️</h3>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ================= LÓGICA DE FIREBASE (NUBE) ================= -->
+    <script type="module">
+        // 1. Importamos las herramientas de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 2. CONFIGURACIÓN DE TU BASE DE DATOS
+        // NOTA: Cuando subas esto a GitHub, reemplaza las letras "TU_..." por los datos de tu consola Firebase
+        let firebaseConfig;
+        if (typeof __firebase_config !== 'undefined') {
+            firebaseConfig = JSON.parse(__firebase_config); // Funciona en esta vista previa
+        } else {
+            // AQUÍ ESTÁN TUS DATOS REALES DE FIREBASE (Extraídos de tu imagen)
+            firebaseConfig = {
+                apiKey: "AIzaSyDbBa_Nh_sOMxDXQnb-wB5jCuLU9jfEsAc",
+                authDomain: "infrareport-7e6ef.firebaseapp.com",
+                projectId: "infrareport-7e6ef",
+                storageBucket: "infrareport-7e6ef.firebasestorage.app",
+                messagingSenderId: "108624304529",
+                appId: "1:108624304529:web:2342192b16448141876230"
+            };
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Esta es la "carpeta" en la nube donde se guardarán los reportes
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'infrareport-colegio';
+        const reportesRef = typeof __app_id !== 'undefined' 
+            ? collection(db, 'artifacts', appId, 'public', 'data', 'reportes')
+            : collection(db, 'reportes');
+
+        // Variables Globales
+        let miUsuarioId = null;
+        let todosLosReportes = [];
+        let tabActual = 'active'; // 'active' o 'history'
+        let imagenBase64 = null;
+
+        // 3. AUTENTICACIÓN INVISIBLE (Para que cada uno pueda borrar sus propias fotos)
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error al autenticar:", error);
+                document.getElementById('postsContainer').innerHTML = `<div class="empty-state"><h3>Error de conexión. Verifica Firebase.</h3></div>`;
+            }
+        };
+
+        // Escuchamos cuando el usuario "invisible" esté listo
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                miUsuarioId = user.uid; // ID único del dispositivo
+                iniciarSincronizacionGlobal(); // Conectamos a la nube de reportes
+            }
+        });
+
+        initAuth();
+
+        // 4. EL MOTOR EN TIEMPO REAL: onSnapshot
+        // Esta función "escucha" a la base de datos 24/7. Si alguien borra o publica, esto se ejecuta automáticamente.
+        function iniciarSincronizacionGlobal() {
+            onSnapshot(reportesRef, (snapshot) => {
+                todosLosReportes = [];
+                snapshot.forEach(doc => {
+                    todosLosReportes.push({ id: doc.id, ...doc.data() });
+                });
+                renderizarPantalla(); // Dibujamos los datos frescos en la pantalla
+            }, (error) => {
+                console.error("Error sincronizando:", error);
+            });
+        }
+
+        // ================= COMPRESIÓN DE IMAGEN =================
+        const photoInput = document.getElementById('photoInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+
+        photoInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Mostrar estado de carga visual
+            uploadPlaceholder.innerHTML = `<div class="upload-text">⏳ Procesando imagen...</div>`;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+
+                // NUEVO: Detector de errores de formato de imagen (Ej: fotos HEIC de iPhone)
+                img.onerror = function() {
+                    alert("⚠️ Error: El formato de esta imagen no es compatible o está dañada. Si estás en iPhone, intenta subirla como JPG o PNG.");
+                    uploadPlaceholder.innerHTML = `
+                        <div class="upload-icon">☁️</div>
+                        <div class="upload-text">Tocar para subir foto</div>
+                    `;
+                };
+
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800; // Resolución ampliada
+                        let scaleSize = MAX_WIDTH / img.width;
+                        if (scaleSize > 1) scaleSize = 1; // Evita que imágenes pequeñas se pixelen
+                        
+                        canvas.width = img.width * scaleSize;
+                        canvas.height = img.height * scaleSize;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Convertimos a texto ligero
+                        imagenBase64 = canvas.toDataURL('image/jpeg', 0.7); 
+                        
+                        imagePreview.src = imagenBase64;
+                        imagePreview.style.display = 'block';
+                        uploadPlaceholder.style.display = 'none';
+                        
+                        // Restauramos el texto por si la cambian después
+                        uploadPlaceholder.innerHTML = `
+                            <div class="upload-icon">☁️</div>
+                            <div class="upload-text">Tocar para subir foto</div>
+                        `;
+                    } catch (error) {
+                        console.error("Error al procesar la imagen:", error);
+                        alert("Hubo un problema procesando la imagen. Intenta con otra foto.");
+                        uploadPlaceholder.innerHTML = `
+                            <div class="upload-icon">⚠️</div>
+                            <div class="upload-text">Error al cargar. Toca para reintentar.</div>
+                        `;
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // ================= ACCIONES DEL USUARIO (Vinculadas a Window para el HTML) =================
+
+        // PUBLICAR
+        window.publishReport = async function() {
+            // NUEVO: Seguro contra olvidos de configuración
+            if (firebaseConfig && firebaseConfig.apiKey === "TU_API_KEY") {
+                alert("🛑 ¡ALTO! El sistema detectó que aún no has pegado tus claves de Firebase en el código (línea 222). La foto no puede viajar a la nube sin ellas.");
+                return;
+            }
+
+            const title = document.getElementById('objTitle').value.trim();
+            const desc = document.getElementById('objDesc').value.trim();
+            const btn = document.getElementById('btnSubmit');
+
+            if (!title || !desc || !imagenBase64) {
+                alert("Completa el título, descripción y foto.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "Subiendo a la nube...";
+
+            const nuevoId = "rep_" + Date.now();
+            const docRef = typeof __app_id !== 'undefined' 
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'reportes', nuevoId)
+                : doc(db, 'reportes', nuevoId);
+
+            try {
+                await setDoc(docRef, {
+                    autorId: miUsuarioId,
+                    titulo: title,
+                    descripcion: desc,
+                    imagen: imagenBase64,
+                    votosUrgente: 0,
+                    votosReparado: 0,
+                    estado: 'activo',
+                    comentarios: []
+                });
+                // Limpiar formulario al éxito
+                document.getElementById('objTitle').value = '';
+                document.getElementById('objDesc').value = '';
+                photoInput.value = '';
+                imagenBase64 = null;
+                imagePreview.style.display = 'none';
+                uploadPlaceholder.style.display = 'block';
+                if(tabActual === 'history') window.switchTab('active');
+            } catch (e) {
+                console.error("Error al publicar:", e);
+                alert("No se pudo publicar. Revisa la conexión.");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "+ Publicar para el grupo";
+            }
+        };
+
+        // VOTAR URGENTE
+        window.votarUrgente = async function(id) {
+            const reporte = todosLosReportes.find(r => r.id === id);
+            if (!reporte) return;
+            const docRef = typeof __app_id !== 'undefined' 
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'reportes', id)
+                : doc(db, 'reportes', id);
+            
+            await updateDoc(docRef, { votosUrgente: reporte.votosUrgente + 1 });
+        };
+
+        // VOTAR REPARADO
+        window.votarReparado = async function(id) {
+            const reporte = todosLosReportes.find(r => r.id === id);
+            if (!reporte) return;
+            const docRef = typeof __app_id !== 'undefined' 
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'reportes', id)
+                : doc(db, 'reportes', id);
+            
+            let nuevosVotos = reporte.votosReparado + 1;
+            let nuevoEstado = reporte.estado;
+
+            if (nuevosVotos >= 10) {
+                nuevoEstado = 'reparado';
+            }
+
+            await updateDoc(docRef, { 
+                votosReparado: nuevosVotos,
+                estado: nuevoEstado 
+            });
+        };
+
+        // ELIMINAR (Solo el autor)
+        window.eliminarReporte = async function(id, autorId) {
+            if (miUsuarioId !== autorId) return; // Doble seguridad
+            
+            const confirmar = confirm("¿Seguro que deseas borrarlo? Desaparecerá de las pantallas de todos al instante.");
+            if (confirmar) {
+                const docRef = typeof __app_id !== 'undefined' 
+                    ? doc(db, 'artifacts', appId, 'public', 'data', 'reportes', id)
+                    : doc(db, 'reportes', id);
+                await deleteDoc(docRef);
+                // No necesitamos recargar nada, onSnapshot borrará la caja de la pantalla de todos.
+            }
+        };
+
+        // COMENTAR
+        window.agregarComentario = async function(id) {
+            const input = document.getElementById(`comment-input-${id}`);
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            const reporte = todosLosReportes.find(r => r.id === id);
+            if (!reporte) return;
+
+            const docRef = typeof __app_id !== 'undefined' 
+                ? doc(db, 'artifacts', appId, 'public', 'data', 'reportes', id)
+                : doc(db, 'reportes', id);
+            
+            const nuevosComentarios = [...reporte.comentarios, texto];
+            await updateDoc(docRef, { comentarios: nuevosComentarios });
+        };
+
+        // ================= INTERFAZ Y RENDERIZADO =================
+        window.switchTab = function(tab) {
+            tabActual = tab;
+            document.getElementById('tabActive').classList.toggle('active', tab === 'active');
+            document.getElementById('tabHistory').classList.toggle('active', tab === 'history');
+            document.getElementById('feedTitle').innerHTML = tab === 'active' ? '📦 Reportes Activos' : '✅ Historial Reparados';
+            renderizarPantalla();
+        };
+
+        function renderizarPantalla() {
+            const contenedor = document.getElementById('postsContainer');
+            contenedor.innerHTML = '';
+
+            let reportesFiltrados = todosLosReportes.filter(r => r.estado === tabActual);
+            document.getElementById('caseCount').innerText = reportesFiltrados.length;
+
+            if (reportesFiltrados.length === 0) {
+                contenedor.innerHTML = `
+                    <div class="empty-state">
+                        <span>📁</span>
+                        <h3>Bandeja vacía</h3>
+                        <p>${tabActual === 'active' ? 'Todos están al día. Ningún daño reportado.' : 'Aún no se ha reparado ningún objeto reportado.'}</p>
+                    </div>`;
+                return;
+            }
+
+            // Ordenar: Los más urgentes primero
+            if (tabActual === 'active') {
+                reportesFiltrados.sort((a, b) => b.votosUrgente - a.votosUrgente);
+            }
+
+            reportesFiltrados.forEach(reporte => {
+                const esMio = reporte.autorId === miUsuarioId;
+                const comentariosHTML = reporte.comentarios.map(c => `<div class="comment">💬 ${c}</div>`).join('');
+                
+                // Si tiene muchos votos de urgencia, le ponemos un texto extra
+                const badgeUrgente = reporte.votosUrgente > 0 ? `<span class="badge-urgent">Prioridad (${reporte.votosUrgente})</span>` : '';
+
+                const postHTML = `
+                    <div class="post" id="post-${reporte.id}">
+                        <img src="${reporte.imagen}" class="post-img" alt="Evidencia">
+                        <div class="post-content">
+                            <h3 class="post-title">${reporte.titulo} ${badgeUrgente}</h3>
+                            <p class="post-desc">📍 ${reporte.descripcion}</p>
+                            
+                            <div class="post-actions">
+                                ${tabActual === 'active' ? `
+                                    <button class="btn-action btn-urgent" onclick="votarUrgente('${reporte.id}')">
+                                        ⚠️ Sumar Urgencia
+                                    </button>
+                                    <button class="btn-action btn-repaired" onclick="votarReparado('${reporte.id}')">
+                                        🛠️ Reparado (${reporte.votosReparado}/10)
+                                    </button>
+                                ` : `
+                                    <span class="btn-action btn-repaired" style="cursor:default">✅ Resuelto y archivado</span>
+                                `}
+                                
+                                ${esMio ? `<button class="btn-action btn-delete" onclick="eliminarReporte('${reporte.id}', '${reporte.autorId}')">🗑️ Eliminar</button>` : ''}
+                            </div>
+
+                            <div class="comments-section">
+                                <div class="comment-list">${comentariosHTML}</div>
+                                <div class="comment-input-group">
+                                    <input type="text" id="comment-input-${reporte.id}" placeholder="Escribe un comentario o actualización..." maxlength="100">
+                                    <button onclick="agregarComentario('${reporte.id}')">Enviar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                contenedor.innerHTML += postHTML;
+            });
+        }
+    </script>
+</body>
+</html>
