@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infrareport</title>
+    <style>
+        /* --- ESTÉTICA ESTRICTAMENTE BLANCO Y NEGRO --- */
+        :root {
+            --bg: #ffffff;
+            --fg: #000000;
+            --gray-light: #f5f5f5;
+            --border: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            padding-bottom: 80px;
+        }
+
+        header {
+            border-bottom: 3px solid var(--border);
+            padding: 40px 20px;
+            text-align: center;
+            background-color: var(--bg);
+        }
+
+        header h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .identity-bar {
+            border: 2px solid var(--border);
+            padding: 15px 20px;
+            margin-bottom: 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg);
+        }
+
+        .identity-bar p {
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background-color: var(--fg);
+            color: var(--bg);
+            border: 2px solid var(--fg);
+            padding: 10px 20px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--bg);
+            color: var(--fg);
+        }
+
+        button:disabled {
+            opacity: 0.3;
+            cursor: wait;
+        }
+
+        .btn-text {
+            background: none;
+            color: var(--fg);
+            border: none;
+            text-decoration: underline;
+            padding: 0;
+        }
+        
+        .btn-text:hover {
+            background: none;
+            color: #555;
+        }
+
+        .btn-outline {
+            background-color: var(--bg);
+            color: var(--fg);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--fg);
+            color: var(--bg);
+        }
+
+        .report-section {
+            border: 2px solid var(--border);
+            padding: 35px;
+            margin-bottom: 60px;
+            background-color: var(--gray-light);
+        }
+
+        .report-section h2 {
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .form-group { margin-bottom: 25px; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .form-group input[type="text"],
+        .form-group textarea,
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid var(--border);
+            background-color: var(--bg);
+            color: var(--fg);
+            font-size: 1rem;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            height: 120px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 60px 0 30px 0;
+            text-align: center;
+            border-top: 2px solid var(--border);
+            border-bottom: 2px solid var(--border);
+            padding: 15px 0;
+        }
+
+        .post {
+            border: 2px solid var(--border);
+            margin-bottom: 40px;
+            background-color: var(--bg);
+        }
+
+        .post-header {
+            padding: 15px 20px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--fg);
+            color: var(--bg);
+        }
+
+        .post-author {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .post-header button {
+            background-color: var(--bg);
+            color: var(--fg);
+            padding: 5px 12px;
+            font-size: 0.7rem;
+        }
+        
+        .post-header button:hover {
+            background-color: #ccc;
+        }
+
+        .post-body { padding: 25px; }
+
+        .post-title {
+            font-size: 1.6rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .post-desc {
+            font-size: 1.1rem;
+            margin-bottom: 25px;
+        }
+
+        .post-image {
+            width: 100%;
+            border: 2px solid var(--border);
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .badge-urgent {
+            background-color: var(--bg);
+            color: var(--fg);
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-right: 15px;
+            border: 1px solid var(--bg);
+        }
+
+        .post-actions {
+            padding: 0 25px 25px 25px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .comments-section {
+            border-top: 2px solid var(--border);
+            background-color: var(--gray-light);
+            padding: 25px;
+        }
+
+        .comments-list {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .comment-item {
+            font-size: 0.95rem;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .comment-user {
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+
+        .comment-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .comment-form input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border);
+        }
+
+        .repaired-post {
+            opacity: 0.7;
+        }
+        .repaired-post .post-header {
+            background-color: var(--gray-light);
+            color: var(--fg);
+            border-bottom: 2px solid var(--border);
+        }
+        .repaired-post .post-image {
+            filter: grayscale(100%);
+        }
+        .repaired-banner {
+            padding: 15px;
+            background-color: var(--fg);
+            color: var(--bg);
+            text-align: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Infrareport</h1>
+    </header>
+
+    <div class="container">
+        
+        <div class="identity-bar">
+            <p>Usuario actual: <strong id="userDisplay">Cargando...</strong></p>
+            <button class="btn-text" onclick="switchUser()">Cambiar Identidad</button>
+        </div>
+
+        <section class="report-section">
+            <h2>Registrar Daño</h2>
+            <form id="reportForm">
+                <div class="form-group">
+                    <label>Objeto o Zona Afectada</label>
+                    <input type="text" id="inputObject" required placeholder="Ej: Pizarra, Silla, Foco del Laboratorio...">
+                </div>
+                <div class="form-group">
+                    <label>Descripción del Problema</label>
+                    <textarea id="inputDesc" required placeholder="Describe el estado de la infraestructura..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Evidencia Fotográfica</label>
+                    <input type="file" id="inputFile" accept="image/*" required>
+                </div>
+                <button type="submit" id="submitBtn">Publicar para Todos</button>
+            </form>
+        </section>
+
+        <h2 class="section-title">Infraestructura Dañada</h2>
+        <div id="activeContainer"><p style="text-align:center;">Sincronizando con la red...</p></div>
+
+        <h2 class="section-title">Historial Reparado</h2>
+        <div id="repairedContainer"><p style="text-align:center;">Sincronizando historial...</p></div>
+
+    </div>
+
+    <script>
+        // CONFIGURACIÓN DE BASE DE DATOS
+        const SHARED_DB_ID = "019f2e4a-f7cd-72d1-876a-18b9d1dada3b"; 
+        
+        const DB_ID = SHARED_DB_ID.split('/').pop();
+        const DB_URL = `https://jsonblob.com/api/jsonBlob/${DB_ID}`;
+
+        let sessionUser = localStorage.getItem('infra_user');
+        if (!sessionUser || sessionUser.trim() === "") {
+            sessionUser = prompt("Bienvenido a Infrareport. Escribe tu nombre para participar:") || "Anónimo";
+            localStorage.setItem('infra_user', sessionUser.trim());
+        }
+        document.getElementById('userDisplay').innerText = sessionUser;
+
+        function switchUser() {
+            const newUser = prompt("Escribe tu nombre de usuario:");
+            if (newUser && newUser.trim() !== "") {
+                sessionUser = newUser.trim();
+                localStorage.setItem('infra_user', sessionUser);
+                document.getElementById('userDisplay').innerText = sessionUser;
+                renderDOM();
+            }
+        }
+
+        let localDataCache = { reports: [] };
+
+        async function fetchSharedData() {
+            try {
+                const res = await fetch(DB_URL, { headers: { 'Accept': 'application/json' }});
+                if(res.ok) return await res.json();
+                return { reports: [] };
+            } catch (error) {
+                console.error("Fallo al leer la red", error);
+                return localDataCache;
+            }
+        }
+
+        async function executeAction(actionFunction) {
+            try {
+                const freshData = await fetchSharedData();
+                const modifiedData = actionFunction(freshData);
+                
+                if (modifiedData) {
+                    await fetch(DB_URL, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(modifiedData)
+                    });
+                    localDataCache = modifiedData;
+                    renderDOM();
+                }
+            } catch (err) {
+                alert("Error de sincronización. Por favor, reintenta.");
+            }
+        }
+
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const maxW = 500;
+                        const scale = maxW / img.width;
+                        canvas.width = maxW;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const file = document.getElementById('inputFile').files[0];
+            if (!file) return;
+
+            btn.disabled = true;
+            btn.innerText = "Sincronizando...";
+
+            const base64Image = await compressImage(file);
+            const title = document.getElementById('inputObject').value.trim();
+            const desc = document.getElementById('inputDesc').value.trim();
+
+            await executeAction((data) => {
+                data.reports.push({
+                    id: 'INFRA_' + Date.now(),
+                    creator: sessionUser,
+                    title: title,
+                    description: desc,
+                    photo: base64Image,
+                    urgencyVotes: [],
+                    repairedVotes: [],
+                    comments: [],
+                    isArchived: false
+                });
+                return data;
+            });
+
+            document.getElementById('reportForm').reset();
+            btn.disabled = false;
+            btn.innerText = "Publicar para Todos";
+        });
+
+        function toggleUrgent(id) {
+            executeAction((data) => {
+                const post = data.reports.find(r => r.id === id);
+                if(!post) return null;
+                
+                if (post.urgencyVotes.includes(sessionUser)) {
+                    post.urgencyVotes = post.urgencyVotes.filter(u => u !== sessionUser);
+                } else {
+                    post.urgencyVotes.push(sessionUser);
+                }
+                return data;
+            });
+        }
+
+        function markRepaired(id) {
+            executeAction((data) => {
+                const post = data.reports.find(r => r.id === id);
+                if(!post) return null;
+
+                if (post.repairedVotes.includes(sessionUser)) {
+                    alert("Ya votaste para indicar que esto está reparado.");
+                    return null;
+                }
+
+                post.repairedVotes.push(sessionUser);
+
+                if (post.repairedVotes.length >= 10) {
+                    post.isArchived = true;
+                    alert("¡10 votos alcanzados! El daño pasa al historial general.");
+                }
+                return data;
+            });
+        }
+
+        function postComment(id) {
+            const input = document.getElementById(`com_${id}`);
+            const text = input.value.trim();
+            if(!text) return;
+
+            executeAction((data) => {
+                const post = data.reports.find(r => r.id === id);
+                if(!post) return null;
+                post.comments.push({ user: sessionUser, text: text });
+                return data;
+            });
+        }
+
+        function deletePost(id, creatorName) {
+            if (creatorName.toLowerCase() !== sessionUser.toLowerCase()) {
+                return alert("No estás autorizado. Solo la persona que subió esta foto puede eliminarla.");
+            }
+            if (confirm("¿Seguro que deseas eliminar este reporte de forma global para todos?")) {
+                executeAction((data) => {
+                    data.reports = data.reports.filter(r => r.id !== id);
+                    return data;
+                });
+            }
+        }
+
+        function renderDOM() {
+            const activeCont = document.getElementById('activeContainer');
+            const repairCont = document.getElementById('repairedContainer');
+            
+            activeCont.innerHTML = '';
+            repairCont.innerHTML = '';
+
+            const actives = localDataCache.reports.filter(r => !r.isArchived);
+            const archived = localDataCache.reports.filter(r => r.isArchived);
+
+            actives.sort((a, b) => b.urgencyVotes.length - a.urgencyVotes.length);
+
+            if (actives.length === 0) activeCont.innerHTML = `<p style="text-align:center; margin-bottom: 20px;">Todo en orden. No hay daños reportados.</p>`;
+            if (archived.length === 0) repairCont.innerHTML = `<p style="text-align:center; margin-bottom: 20px;">El historial de reparaciones está vacío.</p>`;
+
+            actives.forEach(p => activeCont.appendChild(createPostHTML(p, false)));
+            archived.forEach(p => repairCont.appendChild(createPostHTML(p, true)));
+        }
+
+        function createPostHTML(post, isHistory) {
+            const card = document.createElement('div');
+            card.className = `post ${isHistory ? 'repaired-post' : ''}`;
+
+            const isMyPost = post.creator.toLowerCase() === sessionUser.toLowerCase();
+            const btnDelete = isMyPost ? `<button onclick="deletePost('${post.id}', '${post.creator}')">Eliminar</button>` : '';
+
+            const urgentes = post.urgencyVotes.length;
+            const badgeUrg = urgentes > 0 ? `<span class="badge-urgent">Urgente (${urgentes})</span>` : '';
+
+            const userUrgent = post.urgencyVotes.includes(sessionUser);
+            const userRepaired = post.repairedVotes.includes(sessionUser);
+
+            const commentsHTML = post.comments.map(c => `
+                <li class="comment-item"><span class="comment-user">${c.user}:</span> ${c.text}</li>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="post-header">
+                    <span class="post-author">Reportado por: <strong>${post.creator}</strong></span>
+                    <div>${badgeUrg} ${btnDelete}</div>
+                </div>
+                <div class="post-body">
+                    <h3 class="post-title">${post.title}</h3>
+                    <p class="post-desc">${post.description}</p>
+                    <img src="${post.photo}" class="post-image" alt="Daño">
+                </div>
+                ${!isHistory ? `
+                    <div class="post-actions">
+                        <button class="${userUrgent ? '' : 'btn-outline'}" onclick="toggleUrgent('${post.id}')">
+                            ${userUrgent ? 'Es Urgente ✓' : '¿Urgente?'} (${urgentes})
+                        </button>
+                        <button class="${userRepaired ? '' : 'btn-outline'}" onclick="markRepaired('${post.id}')">
+                            Registrar Reparado (${post.repairedVotes.length}/10)
+                        </button>
+                    </div>
+                    <div class="comments-section">
+                        <ul class="comments-list">${commentsHTML}</ul>
+                        <div class="comment-form">
+                            <input type="text" id="com_${post.id}" placeholder="Escribe un comentario..." required>
+                            <button onclick="postComment('${post.id}')">Enviar</button>
+                        </div>
+                    </div>
+                ` : `
+                    <div class="repaired-banner">
+                        ✓ Objeto completamente reparado (Confirmado por 10 usuarios)
+                    </div>
+                `}
+            `;
+            return card;
+        }
+
+        async function initApp() {
+            localDataCache = await fetchSharedData();
+            renderDOM();
+        }
+
+        initApp();
+        
+        setInterval(async () => {
+            const fresh = await fetchSharedData();
+            if(JSON.stringify(fresh) !== JSON.stringify(localDataCache)){
+                localDataCache = fresh;
+                renderDOM();
+            }
+        }, 8000);
+    </script>
+</body>
+</html>
