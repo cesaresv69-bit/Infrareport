@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraReport - Red Global Comunitaria</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="shield-alert" class="w-6 h-6 text-amber-500"></i>
+                <span class="font-extrabold text-2xl tracking-wider text-white">Infra<span class="text-amber-500">Report</span></span>
+            </div>
+            <p class="text-xs bg-emerald-600 px-3 py-1.5 rounded-lg text-white font-bold animate-pulse">● Canal Público Comunitario</p>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <section class="lg:col-span-1">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 sticky top-24">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-slate-900">
+                    <i data-lucide="camera" class="text-blue-600"></i> Registrar Nuevo Daño
+                </h2>
+                
+                <form id="reportForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">¿Qué infraestructura está dañada?</label>
+                        <input type="text" id="title" required placeholder="Ej. Semáforo roto o bache en intersección" 
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Detalles o Ubicación exacta</label>
+                        <textarea id="description" required rows="3" placeholder="Da más especificaciones para que los vecinos lo localicen..." 
+                            class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Evidencia Fotográfica</label>
+                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:border-blue-500 transition-colors relative cursor-pointer bg-slate-50">
+                            <div class="space-y-1 text-center">
+                                <i data-lucide="upload-cloud" class="mx-auto h-10 w-10 text-slate-400"></i>
+                                <div class="flex text-sm text-slate-600 justify-center">
+                                    <label for="imageInput" class="relative cursor-pointer font-semibold text-blue-600 hover:text-blue-500">
+                                        <span>Seleccionar foto</span>
+                                        <input id="imageInput" type="file" accept="image/*" required class="sr-only">
+                                    </label>
+                                </div>
+                                <p class="text-xs text-slate-400">Compresión optimizada en vivo</p>
+                            </div>
+                        </div>
+                        <div id="previewContainer" class="mt-3 hidden">
+                            <img id="imgPreview" src="" class="h-32 w-full object-cover rounded-xl border shadow-inner">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="btnSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Publicar para todos
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <section class="lg:col-span-2 space-y-6">
+            <div class="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 flex space-x-1">
+                <button id="tabActive" onclick="switchTab('active')" class="flex-1 py-2.5 text-center text-sm font-bold rounded-lg transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4"></i> Reportes Activos
+                </button>
+                <button id="tabRepaired" onclick="switchTab('repaired')" class="flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Registro de Reparados (Historial)
+                </button>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <h2 id="sectionTitle" class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="activity" class="text-blue-600"></i> Reportes de la Comunidad
+                </h2>
+                <span id="caseCounter" class="text-xs font-bold bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full">Sincronizando...</span>
+            </div>
+
+            <div id="reportsContainer" class="space-y-6"></div>
+            
+            <div id="emptyState" class="hidden bg-white text-center py-16 px-4 rounded-2xl shadow-sm border border-slate-200">
+                <i data-lucide="folder-heart" class="mx-auto h-12 w-12 text-slate-300 mb-3"></i>
+                <p class="text-slate-500 font-bold">Sin novedades en esta sección</p>
+                <p class="text-slate-400 text-xs mt-1">Sube un reporte para compartirlo con el mundo.</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Token único del dispositivo
+        if (!localStorage.getItem('infra_user_token')) {
+            localStorage.setItem('infra_user_token', 'user_' + Math.random().toString(36).substr(2, 9));
+        }
+        const myToken = localStorage.getItem('infra_user_token');
+
+        // Configuración de la base de datos libre KV-Storage pública para compartir entre todos
+        const BIN_ID = "66580cbfe41b4d34e4bc117a"; 
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const MASTER_KEY = "$2a$10$vG9L6g0.Zf1mU657w9vIReXnZ5M23XpGgqCq7r42X2kF8y6nN3xKO"; 
+
+        const reportForm = document.getElementById('reportForm');
+        const imageInput = document.getElementById('imageInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const imgPreview = document.getElementById('imgPreview');
+        const reportsContainer = document.getElementById('reportsContainer');
+        const emptyState = document.getElementById('emptyState');
+        const caseCounter = document.getElementById('caseCounter');
+        const btnSubmit = document.getElementById('btnSubmit');
+        
+        let tabActive = document.getElementById('tabActive');
+        let tabRepaired = document.getElementById('tabRepaired');
+        let sectionTitle = document.getElementById('sectionTitle');
+
+        let reportsList = [];
+        window.currentTab = 'active'; 
+        let currentImageBase64 = '';
+        const REPAIRED_THRESHOLD = 20;
+
+        // Cargar Base de Datos
+        async function fetchGlobalData() {
+            try {
+                const res = await fetch(API_URL, {
+                    headers: { "X-Master-Key": MASTER_KEY }
+                });
+                const data = await res.json();
+                reportsList = data.record.reports || [];
+                renderReports();
+            } catch (err) {
+                console.error("Error cargando la base de datos", err);
+                caseCounter.textContent = "Error de conexión";
+            }
+        }
+
+        // Guardar la lista entera actualizada en la nube
+        async function saveGlobalData(newList) {
+            try {
+                await fetch(API_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ reports: newList })
+                });
+                reportsList = newList;
+                renderReports();
+            } catch (err) {
+                alert("Hubo un error al sincronizar con la nube, reintenta.");
+            }
+        }
+
+        // Compresión de fotos
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 500; 
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        currentImageBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                        imgPreview.src = currentImageBase64;
+                        previewContainer.classList.remove('hidden');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Enviar nuevo caso
+        reportForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = "Publicando...";
+
+            const newReport = {
+                id: 'report_' + Date.now(),
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                image: currentImageBase64,
+                urgencyVotes: 0,
+                repairedVotes: 0,
+                creatorToken: myToken,
+                comments: [],
+                date: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+            };
+
+            const updatedList = [newReport, ...reportsList];
+            await saveGlobalData(updatedList);
+
+            reportForm.reset();
+            previewContainer.classList.add('hidden');
+            currentImageBase64 = '';
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i> Publicar para todos`;
+        });
+
+        window.toggleUrgency = async function(id) {
+            const updated = reportsList.map(r => {
+                if (r.id === id) {
+                    let votes = r.urgencyVotes || 0;
+                    if (!localStorage.getItem(`voted_urg_${id}`)) {
+                        votes += 1;
+                        localStorage.setItem(`voted_urg_${id}`, 'true');
+                    } else {
+                        votes = Math.max(0, votes - 1);
+                        localStorage.removeItem(`voted_urg_${id}`);
+                    }
+                    r.urgencyVotes = votes;
+                }
+                return r;
+            });
+            await saveGlobalData(updated);
+        };
+
+        window.toggleRepairedVote = async function(id) {
+            const updated = reportsList.map(r => {
+                if (r.id === id) {
+                    let votes = r.repairedVotes || 0;
+                    if (!localStorage.getItem(`voted_rep_${id}`)) {
+                        votes += 1;
+                        localStorage.setItem(`voted_rep_${id}`, 'true');
+                    } else {
+                        votes = Math.max(0, votes - 1);
+                        localStorage.removeItem(`voted_rep_${id}`);
+                    }
+                    r.repairedVotes = votes;
+                }
+                return r;
+            });
+            await saveGlobalData(updated);
+        };
+
+        window.addComment = async function(e, id) {
+            e.preventDefault();
+            const input = document.getElementById(`comment-input-${id}`);
+            const text = input.value.trim();
+            if (text === '') return;
+
+            const updated = reportsList.map(r => {
+                if (r.id === id) {
+                    if (!r.comments) r.comments = [];
+                    r.comments.push({
+                        text: text,
+                        date: new Date().toLocaleDateString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                    });
+                }
+                return r;
+            });
+
+            input.value = '';
+            await saveGlobalData(updated);
+        };
+
+        window.deleteReport = async function(id) {
+            const item = reportsList.find(r => r.id === id);
+            if (item && item.creatorToken === myToken) {
+                if (confirm("¿Seguro que deseas eliminar tu publicación?")) {
+                    const updated = reportsList.filter(r => r.id !== id);
+                    await saveGlobalData(updated);
+                }
+            }
+        };
+
+        window.switchTab = function(tab) {
+            window.currentTab = tab;
+            if (tab === 'active') {
+                tabActive.className = "flex-1 py-2.5 text-center text-sm font-bold rounded-lg transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-2";
+                tabRepaired.className = "flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2";
+                sectionTitle.innerHTML = `<i data-lucide="activity" class="text-blue-600"></i> Reportes de la Comunidad`;
+            } else {
+                tabRepaired.className = "flex-1 py-2.5 text-center text-sm font-bold rounded-lg transition-all bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-2";
+                tabActive.className = "flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2";
+                sectionTitle.innerHTML = `<i data-lucide="archive" class="text-emerald-600"></i> Historial de Infraestructura Reparada`;
+            }
+            renderReports();
+        };
+
+        function renderReports() {
+            reportsContainer.innerHTML = '';
+            
+            let filtered = reportsList.filter(r => {
+                const repVotes = r.repairedVotes || 0;
+                return window.currentTab === 'active' ? repVotes < REPAIRED_THRESHOLD : repVotes >= REPAIRED_THRESHOLD;
+            });
+
+            if (window.currentTab === 'active') {
+                filtered.sort((a, b) => (b.urgencyVotes || 0) - (a.urgencyVotes || 0));
+            }
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                caseCounter.textContent = `0 casos`;
+                lucide.createIcons();
+                return;
+            }
+            emptyState.classList.add('hidden');
+            caseCounter.textContent = `${filtered.length} ${filtered.length === 1 ? 'caso' : 'casos'}`;
+
+            filtered.forEach(report => {
+                const card = document.createElement('div');
+                const isMyReport = report.creatorToken === myToken;
+                
+                card.className = `bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 ${
+                    window.currentTab === 'repaired' ? 'border-emerald-200 bg-emerald-50/10' : ((report.urgencyVotes || 0) > 0 ? 'border-amber-200 bg-amber-50/5' : 'border-slate-200')
+                }`;
+
+                let commentsHTML = '';
+                if(report.comments) {
+                    report.comments.forEach(c => {
+                        commentsHTML += `
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                                <p class="text-slate-700">${c.text}</p>
+                                <span class="text-[10px] text-slate-400 block text-right mt-1">${c.date}</span>
+                            </div>`;
+                    });
+                }
+
+                const hasVotedUrgent = localStorage.getItem(`voted_urg_${report.id}`) === 'true';
+                const hasVotedRepaired = localStorage.getItem(`voted_rep_${report.id}`) === 'true';
+
+                card.innerHTML = `
+                    <div class="md:flex">
+                        <div class="md:shrink-0 relative bg-slate-100">
+                            <img class="h-56 w-full object-cover md:w-52" src="${report.image}" alt="Foto Daño">
+                            ${window.currentTab === 'repaired' ? `<div class="absolute top-2 left-2 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1 shadow-md"><i data-lucide="check" class="w-3 h-3"></i> Solucionado</div>` : ''}
+                        </div>
+                        <div class="p-5 flex flex-col justify-between w-full">
+                            <div>
+                                <div class="flex justify-between items-start gap-4">
+                                    <h3 class="text-base font-bold text-slate-900 leading-tight">${report.title}</h3>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-[10px] text-slate-400 font-medium">${report.date}</span>
+                                        ${isMyReport ? `
+                                            <button onclick="deleteReport('${report.id}')" class="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition-colors">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <p class="mt-2 text-xs text-slate-600 leading-relaxed">${report.description}</p>
+                            </div>
+
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-center gap-2">
+                                    ${window.currentTab === 'active' ? `
+                                        <button onclick="toggleUrgency('${report.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${hasVotedUrgent ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 hover:bg-amber-100 text-amber-700'}">
+                                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                                            <span>${hasVotedUrgent ? 'Urgente ✔' : 'Votar Urgente'} (${report.urgencyVotes || 0})</span>
+                                        </button>
+                                    ` : `<span class="text-xs font-medium text-slate-500 flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">Prioridad: ${report.urgencyVotes || 0}</span>`}
+
+                                    <button onclick="toggleRepairedVote('${report.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${hasVotedRepaired ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}">
+                                        <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
+                                        <span>¿Se reparó? (${report.repairedVotes || 0}/${REPAIRED_THRESHOLD})</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50/50 p-4 border-t border-slate-100 space-y-3">
+                        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                            <i data-lucide="message-square" class="w-3.5 h-3.5 text-blue-600"></i>
+                            <span>Comentarios (${report.comments ? report.comments.length : 0})</span>
+                        </div>
+                        <div class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            ${commentsHTML || '<p class="text-xs text-slate-400 italic">No hay comentarios.</p>'}
+                        </div>
+                        <form onsubmit="addComment(event, '${report.id}')" class="flex gap-2 pt-2">
+                            <input type="text" id="comment-input-${report.id}" placeholder="Escribe un comentario..." required class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0">Comentar</button>
+                        </form>
+                    </div>
+                `;
+                reportsContainer.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Carga inicial
+        fetchGlobalData();
+    </script>
+</body>
+</html>
