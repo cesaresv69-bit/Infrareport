@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InfraReport - Reporte Comunitario de Infraestructura</title>
+    <title>InfraReport - Red Global Comunitaria</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -15,7 +15,7 @@
                 <i data-lucide="shield-alert" class="w-6 h-6 text-amber-500"></i>
                 <span class="font-extrabold text-2xl tracking-wider text-white">Infra<span class="text-amber-500">Report</span></span>
             </div>
-            <p class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 font-medium">Plataforma Pública Ciudadana</p>
+            <p class="text-xs bg-emerald-600 px-3 py-1.5 rounded-lg text-white font-bold animate-pulse">● Conectado en Vivo (Nube)</p>
         </div>
     </nav>
 
@@ -36,7 +36,7 @@
 
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Detalles o Ubicación exacta</label>
-                        <textarea id="description" required rows="3" placeholder="Da más especificaciones para que las autoridades o vecinos lo localicen..." 
+                        <textarea id="description" required rows="3" placeholder="Da más especificaciones para que los vecinos lo localicen..." 
                             class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
                     </div>
 
@@ -59,8 +59,8 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-sm">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Publicar en el Mapa Comunitario
+                    <button type="submit" id="btnSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Publicar para todos
                     </button>
                 </form>
             </div>
@@ -81,7 +81,7 @@
                 <h2 id="sectionTitle" class="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <i data-lucide="activity" class="text-blue-600"></i> Reportes de la Comunidad
                 </h2>
-                <span id="caseCounter" class="text-xs font-bold bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full">0 casos</span>
+                <span id="caseCounter" class="text-xs font-bold bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full">Cargando...</span>
             </div>
 
             <div id="reportsContainer" class="space-y-6"></div>
@@ -89,15 +89,29 @@
             <div id="emptyState" class="hidden bg-white text-center py-16 px-4 rounded-2xl shadow-sm border border-slate-200">
                 <i data-lucide="folder-heart" class="mx-auto h-12 w-12 text-slate-300 mb-3"></i>
                 <p class="text-slate-500 font-bold">Sin novedades en esta sección</p>
-                <p class="text-slate-400 text-xs mt-1">Todo se encuentra actualizado o no se han subido registros.</p>
+                <p class="text-slate-400 text-xs mt-1">Sube una foto para compartirla con todo el mundo en vivo.</p>
             </div>
         </section>
 
     </main>
 
-    <script>
-        // Inicializar Lucide
-        lucide.createIcons();
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Configuración de la base de datos pública comunitaria para InfraReport
+        const firebaseConfig = {
+            databaseURL: "https://infrareport-paises-default-rtdb.firebaseio.com/"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Generar un identificador de usuario único en este dispositivo si no existe
+        if (!localStorage.getItem('infra_user_token')) {
+            localStorage.setItem('infra_user_token', 'user_' + Math.random().toString(36).substr(2, 9));
+        }
+        const myToken = localStorage.getItem('infra_user_token');
 
         // Elementos del DOM
         const reportForm = document.getElementById('reportForm');
@@ -107,20 +121,18 @@
         const reportsContainer = document.getElementById('reportsContainer');
         const emptyState = document.getElementById('emptyState');
         const caseCounter = document.getElementById('caseCounter');
+        const btnSubmit = document.getElementById('btnSubmit');
         
-        const tabActive = document.getElementById('tabActive');
-        const tabRepaired = document.getElementById('tabRepaired');
-        const sectionTitle = document.getElementById('sectionTitle');
+        let tabActive = document.getElementById('tabActive');
+        let tabRepaired = document.getElementById('tabRepaired');
+        let sectionTitle = document.getElementById('sectionTitle');
 
-        // Estado global de InfraReport
-        let reports = JSON.parse(localStorage.getItem('infra_report_data')) || [];
-        let currentTab = 'active'; // 'active' o 'repaired'
+        let globalReports = {};
+        window.currentTab = 'active'; 
         let currentImageBase64 = '';
-
-        // Constante requerida para mover al historial
         const REPAIRED_THRESHOLD = 20;
 
-        // Convertir imagen subida a Base64
+        // Comprimir e integrar imagen
         imageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -134,99 +146,101 @@
             }
         });
 
-        // Crear y añadir un nuevo reporte
+        // Guardar en la Base de Datos Global en la Nube
         reportForm.addEventListener('submit', function(e) {
             e.preventDefault();
+            btnSubmit.disabled = true;
+            btnSubmit.innerText = "Publicando a la nube...";
 
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
+            const reportId = 'report_' + Date.now();
 
             const newReport = {
-                id: Date.now(),
+                id: reportId,
                 title: title,
                 description: description,
                 image: currentImageBase64,
                 urgencyVotes: 0,
                 repairedVotes: 0,
-                userVotedUrgent: false,
-                userVotedRepaired: false,
-                comments: [],
+                creatorToken: myToken, // Guarda quién la creó
                 date: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
             };
 
-            reports.push(newReport);
-            saveAndRender();
-
-            reportForm.reset();
-            previewContainer.classList.add('hidden');
-            currentImageBase64 = '';
+            set(ref(db, 'reports/' + reportId), newReport).then(() => {
+                reportForm.reset();
+                previewContainer.classList.add('hidden');
+                currentImageBase64 = '';
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i data-lucide="plus" class="w-4 h-4"></i> Publicar para todos`;
+                lucide.createIcons();
+            });
         });
 
-        // Votar / Quitar voto de Urgencia
-        function toggleUrgency(id) {
-            reports = reports.map(r => {
-                if (r.id === id) {
-                    if (r.userVotedUrgent) {
-                        r.urgencyVotes -= 1;
-                        r.userVotedUrgent = false;
-                    } else {
-                        r.urgencyVotes += 1;
-                        r.userVotedUrgent = true;
-                    }
-                }
-                return r;
-            });
-            saveAndRender();
-        }
+        // Escuchar cambios en la Base de Datos en Tiempo Real para TODOS los usuarios
+        onValue(ref(db, 'reports'), (snapshot) => {
+            globalReports = snapshot.val() || {};
+            renderReports();
+        });
 
-        // Votar / Quitar voto de Reparado (Lógica de validación de 20 votos)
-        function toggleRepairedVote(id) {
-            reports = reports.map(r => {
-                if (r.id === id) {
-                    if (r.userVotedRepaired) {
-                        r.repairedVotes -= 1;
-                        r.userVotedRepaired = false;
-                    } else {
-                        r.repairedVotes += 1;
-                        r.userVotedRepaired = true;
-                    }
-                }
-                return r;
-            });
-            saveAndRender();
-        }
+        // Sistema de Votos e Interacciones en la nube
+        window.toggleUrgency = function(id) {
+            const r = globalReports[id];
+            if(!r) return;
+            
+            if (!localStorage.getItem(`voted_urg_${id}`)) {
+                update(ref(db, 'reports/' + id), { urgencyVotes: (r.urgencyVotes || 0) + 1 });
+                localStorage.setItem(`voted_urg_${id}`, 'true');
+            } else {
+                update(ref(db, 'reports/' + id), { urgencyVotes: Math.max(0, (r.urgencyVotes || 0) - 1) });
+                localStorage.removeItem(`voted_urg_${id}`);
+            }
+        };
 
-        // Añadir comentario a un reporte específico
-        function addComment(e, id) {
+        window.toggleRepairedVote = function(id) {
+            const r = globalReports[id];
+            if(!r) return;
+
+            if (!localStorage.getItem(`voted_rep_${id}`)) {
+                update(ref(db, 'reports/' + id), { repairedVotes: (r.repairedVotes || 0) + 1 });
+                localStorage.setItem(`voted_rep_${id}`, 'true');
+            } else {
+                update(ref(db, 'reports/' + id), { repairedVotes: Math.max(0, (r.repairedVotes || 0) - 1) });
+                localStorage.removeItem(`voted_rep_${id}`);
+            }
+        };
+
+        window.addComment = function(e, id) {
             e.preventDefault();
             const input = document.getElementById(`comment-input-${id}`);
             const text = input.value.trim();
-            
             if (text === '') return;
 
-            reports = reports.map(r => {
-                if (r.id === id) {
-                    r.comments.push({
-                        text: text,
-                        date: new Date().toLocaleDateString('es-ES', { hour: '2-digit', minute: '2-digit' })
-                    });
-                }
-                return r;
+            const r = globalReports[id];
+            const comments = r.comments ? [...r.comments] : [];
+            comments.push({
+                text: text,
+                date: new Date().toLocaleDateString('es-ES', { hour: '2-digit', minute: '2-digit' })
             });
 
+            update(ref(db, 'reports/' + id), { comments: comments });
             input.value = '';
-            saveAndRender();
-        }
+        };
 
-        // Guardar datos y actualizar vista
-        function saveAndRender() {
-            localStorage.setItem('infra_report_data', JSON.stringify(reports));
-            renderReports();
-        }
+        // FUNCIÓN CLAVE: Solo el creador original puede borrar su reporte
+        window.deleteReport = function(id) {
+            const r = globalReports[id];
+            if (r && r.creatorToken === myToken) {
+                if(confirm("¿Estás seguro de que deseas eliminar permanentemente tu reporte?")) {
+                    remove(ref(db, 'reports/' + id));
+                }
+            } else {
+                alert("¡Error! No tienes autorización para eliminar un reporte que fue publicado por otro ciudadano.");
+            }
+        };
 
-        // Cambiar entre pestañas
-        function switchTab(tab) {
-            currentTab = tab;
+        window.switchTab = function(tab) {
+            window.currentTab = tab;
             if (tab === 'active') {
                 tabActive.className = "flex-1 py-2.5 text-center text-sm font-bold rounded-lg transition-all bg-blue-600 text-white shadow-sm flex items-center justify-center gap-2";
                 tabRepaired.className = "flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-all text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2";
@@ -237,101 +251,86 @@
                 sectionTitle.innerHTML = `<i data-lucide="archive" class="text-emerald-600"></i> Historial de Infraestructura Reparada`;
             }
             renderReports();
-        }
+        };
 
-        // Renderizar la lista filtrada de reportes
         function renderReports() {
             reportsContainer.innerHTML = '';
+            let list = Object.values(globalReports);
 
-            // Filtrar según la pestaña activa (Umbral de 20 votos)
-            let filteredReports = reports.filter(r => {
-                if (currentTab === 'active') {
-                    return r.repairedVotes < REPAIRED_THRESHOLD;
-                } else {
-                    return r.repairedVotes >= REPAIRED_THRESHOLD;
-                }
+            let filtered = list.filter(r => {
+                const repVotes = r.repairedVotes || 0;
+                return window.currentTab === 'active' ? repVotes < REPAIRED_THRESHOLD : repVotes >= REPAIRED_THRESHOLD;
             });
 
-            // Si está en activos, ordenar por prioridad (votos de urgencia) de mayor a menor
-            if (currentTab === 'active') {
-                filteredReports.sort((a, b) => b.urgencyVotes - a.urgencyVotes);
+            if (window.currentTab === 'active') {
+                filtered.sort((a, b) => (b.urgencyVotes || 0) - (a.urgencyVotes || 0));
             }
 
-            // Mostrar / Ocultar Estado Vacío
-            if (filteredReports.length === 0) {
+            if (filtered.length === 0) {
                 emptyState.classList.remove('hidden');
                 caseCounter.textContent = `0 casos`;
+                lucide.createIcons();
                 return;
             }
             emptyState.classList.add('hidden');
-            caseCounter.textContent = `${filteredReports.length} ${filteredReports.length === 1 ? 'caso' : 'casos'}`;
+            caseCounter.textContent = `${filtered.length} ${filtered.length === 1 ? 'caso' : 'casos'}`;
 
-            // Dibujar tarjetas
-            filteredReports.forEach(report => {
+            filtered.forEach(report => {
                 const card = document.createElement('div');
+                const isMyReport = report.creatorToken === myToken; // Validación visual de pertenencia
+                
                 card.className = `bg-white rounded-2xl shadow-sm border overflow-hidden transition-all duration-300 ${
-                    currentTab === 'repaired' 
-                    ? 'border-emerald-200 bg-emerald-50/20' 
-                    : (report.urgencyVotes > 0 ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200')
+                    window.currentTab === 'repaired' ? 'border-emerald-200 bg-emerald-50/10' : ((report.urgencyVotes || 0) > 0 ? 'border-amber-200 bg-amber-50/5' : 'border-slate-200')
                 }`;
 
-                // Renderizar los comentarios de este reporte
                 let commentsHTML = '';
-                report.comments.forEach(c => {
-                    commentsHTML += `
-                        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
-                            <p class="text-slate-700">${c.text}</p>
-                            <span class="text-[10px] text-slate-400 block text-right mt-1">${c.date}</span>
-                        </div>
-                    `;
-                });
+                if(report.comments) {
+                    report.comments.forEach(c => {
+                        commentsHTML += `
+                            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs">
+                                <p class="text-slate-700">${c.text}</p>
+                                <span class="text-[10px] text-slate-400 block text-right mt-1">${c.date}</span>
+                            </div>`;
+                    });
+                }
+
+                const hasVotedUrgent = localStorage.getItem(`voted_urg_${report.id}`) === 'true';
+                const hasVotedRepaired = localStorage.getItem(`voted_rep_${report.id}`) === 'true';
 
                 card.innerHTML = `
                     <div class="md:flex">
-                        <div class="md:shrink-0 relative">
-                            <img class="h-56 w-full object-cover md:w-52" src="${report.image}" alt="Imagen del reporte">
-                            ${currentTab === 'repaired' ? `
-                                <div class="absolute top-2 left-2 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1 shadow-md">
-                                    <i data-lucide="check" class="w-3 h-3"></i> Solucionado
-                                </div>
-                            ` : ''}
+                        <div class="md:shrink-0 relative bg-slate-100">
+                            <img class="h-56 w-full object-cover md:w-52" src="${report.image || 'https://images.unsplash.com/photo-1584467541268-b040f83be3fd?w=500'}" alt="Foto">
+                            ${window.currentTab === 'repaired' ? `<div class="absolute top-2 left-2 bg-emerald-600 text-white px-2.5 py-1 rounded-md text-xs font-bold flex items-center gap-1 shadow-md"><i data-lucide="check" class="w-3 h-3"></i> Solucionado</div>` : ''}
                         </div>
                         <div class="p-5 flex flex-col justify-between w-full">
                             <div>
                                 <div class="flex justify-between items-start gap-4">
                                     <h3 class="text-base font-bold text-slate-900 leading-tight">${report.title}</h3>
-                                    <span class="text-[11px] text-slate-400 font-medium shrink-0">${report.date}</span>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="text-[10px] text-slate-400 font-medium">${report.date}</span>
+                                        ${isMyReport ? `
+                                            <button onclick="deleteReport('${report.id}')" class="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition-colors" title="Eliminar mi publicación">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        ` : ''}
+                                    </div>
                                 </div>
                                 <p class="mt-2 text-xs text-slate-600 leading-relaxed">${report.description}</p>
                             </div>
 
                             <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-                                
                                 <div class="flex items-center gap-2">
-                                    ${currentTab === 'active' ? `
-                                        <button onclick="toggleUrgency(${report.id})" 
-                                            class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                                report.userVotedUrgent 
-                                                ? 'bg-amber-500 text-white shadow-sm' 
-                                                : 'bg-amber-50 hover:bg-amber-100 text-amber-700'
-                                            }">
+                                    ${window.currentTab === 'active' ? `
+                                        <button onclick="toggleUrgency('${report.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${hasVotedUrgent ? 'bg-amber-500 text-white shadow-sm' : 'bg-amber-50 hover:bg-amber-100 text-amber-700'}">
                                             <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
-                                            <span>${report.userVotedUrgent ? 'Urgente' : 'Votar Urgente'} (${report.urgencyVotes})</span>
+                                            <span>${hasVotedUrgent ? 'Urgente ✔' : 'Votar Urgente'} (${report.urgencyVotes || 0})</span>
                                         </button>
-                                    ` : `
-                                        <span class="text-xs font-medium text-slate-500 flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">
-                                             Prioridad de impacto inicial: ${report.urgencyVotes}
-                                        </span>
-                                    `}
+                                    ` : `<span class="text-xs font-medium text-slate-500 flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-md">Prioridad inicial: ${report.urgencyVotes || 0}</span>`}
 
-                                    <button onclick="toggleRepairedVote(${report.id})" 
-                                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                            report.userVotedRepaired 
-                                            ? 'bg-emerald-600 text-white shadow-sm' 
-                                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
-                                        }">
+                                    <button onclick="toggleRepairedVote('${report.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${hasVotedRepaired ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}">
                                         <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
-                                        <span>${report.userVotedRepaired ? '¿Arreglado ✔?' : '¿Ya se reparó?'} (${report.repairedVotes}/${REPAIRED_THRESHOLD})</span>
+                                        <span>¿Ya se reparó? (${report.repairedVotes || 0}/${REPAIRED_THRESHOLD})</span>
                                     </button>
                                 </div>
                             </div>
@@ -341,31 +340,21 @@
                     <div class="bg-slate-50/50 p-4 border-t border-slate-100 space-y-3">
                         <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700">
                             <i data-lucide="message-square" class="w-3.5 h-3.5 text-blue-600"></i>
-                            <span>Comentarios (${report.comments.length})</span>
+                            <span>Comentarios (${report.comments ? report.comments.length : 0})</span>
                         </div>
-                        
                         <div class="space-y-2 max-h-40 overflow-y-auto pr-1">
-                            ${commentsHTML || '<p class="text-xs text-slate-400 italic">No hay comentarios todavía. Deja tu actualización o estado del daño abajo.</p>'}
+                            ${commentsHTML || '<p class="text-xs text-slate-400 italic">No hay comentarios.</p>'}
                         </div>
-
-                        <form onsubmit="addComment(event, ${report.id})" class="flex gap-2 pt-2">
-                            <input type="text" id="comment-input-${report.id}" placeholder="Escribe un comentario o actualización..." required
-                                class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
-                            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0">
-                                Comentar
-                            </button>
+                        <form onsubmit="addComment(event, '${report.id}')" class="flex gap-2 pt-2">
+                            <input type="text" id="comment-input('${report.id}')" placeholder="Escribe un comentario..." required class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0">Comentar</button>
                         </form>
                     </div>
                 `;
-
                 reportsContainer.appendChild(card);
             });
-
             lucide.createIcons();
         }
-
-        // Carga inicial
-        renderReports();
     </script>
 </body>
 </html>
